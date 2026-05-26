@@ -1,0 +1,178 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
+from scipy.optimize import root_scalar
+from IPython.display import clear_output
+
+# ==========================================
+# 1. CARGA DE DATOS Y MODELOS GLOBALES
+# ==========================================
+f = np.array([10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0, 32.5, 35.0, 37.5, 40.0, 42.5, 45.0,
+              47.5, 50.0, 52.5, 55.0, 57.5, 60.0, 62.5, 65.0, 67.5, 70.0, 72.5, 75.0, 77.5, 80.0, 82.5,
+              85.0, 87.5, 90.0, 92.5, 95.0, 97.5, 100.0, 102.5, 105.0, 107.5])
+
+V = np.array([0.842, 0.911, 0.986, 1.062, 1.143, 1.227, 1.314, 1.401, 1.482, 1.551, 1.216, 1.048, 0.866, 0.689, 0.521,
+              0.364, 0.223, 0.103, 0.012, -0.041, -0.057, -0.034, 0.018, 0.096, 0.197, 0.318, 0.452, 0.579, 0.700, 0.809,
+              0.611, 0.688, 0.756, 0.811, 0.856, 0.894, 0.926, 0.954, 0.980, 1.004])
+
+Z = np.array([182.4, 178.9, 175.1, 171.0, 166.8, 162.7, 158.9, 155.4, 152.0, 149.0, 146.1, 145.2, 145.8, 147.3, 149.9,
+              153.5, 158.0, 163.2, 168.9, 174.8, 180.5, 186.2, 191.5, 196.2, 200.1, 203.1, 205.2, 206.3, 206.1, 204.7,
+              198.0, 194.4, 190.9, 187.8, 185.1, 183.0, 181.6, 180.8, 180.6, 180.9])
+
+f_smooth = np.linspace(f.min(), f.max(), 500)
+spline_V = CubicSpline(f, V, bc_type='natural')
+spline_Z = CubicSpline(f, Z, bc_type='natural')
+spline_dV = spline_V.derivative()
+
+# ==========================================
+# FUNCIONES POR CADA PARTE DEL EXAMEN
+# ==========================================
+
+def ejecutar_parte_1():
+    print("\n--- RESULTADOS PARTE 1: INTERPOLACIÓN ---")
+    def lagrange_grado2(f_target, f_data, y_data):
+        idx = np.argsort(np.abs(f_data - f_target))[:3]
+        f_p, y_p = f_data[idx], y_data[idx]
+        L0 = ((f_target - f_p[1])*(f_target - f_p[2])) / ((f_p[0] - f_p[1])*(f_p[0] - f_p[2]))
+        L1 = ((f_target - f_p[0])*(f_target - f_p[2])) / ((f_p[1] - f_p[0])*(f_p[1] - f_p[2]))
+        L2 = ((f_target - f_p[0])*(f_target - f_p[1])) / ((f_p[2] - f_p[0])*(f_p[2] - f_p[1]))
+        return y_p[0]*L0 + y_p[1]*L1 + y_p[2]*L2
+
+    f_eval = [41.0, 73.0]
+    for freq in f_eval:
+        print(f"\nPara f = {freq} kHz:")
+        print(f"  [Lagrange] V = {lagrange_grado2(freq, f, V):.4f} V  |  |Z| = {lagrange_grado2(freq, f, Z):.4f} Ohmios")
+        print(f"  [Spline]   V = {spline_V(freq):.4f} V  |  |Z| = {spline_Z(freq):.4f} Ohmios")
+
+    plt.figure(figsize=(10, 8))
+    plt.subplot(2, 1, 1)
+    plt.plot(f_smooth, spline_V(f_smooth), 'b-', label='Spline Cúbico')
+    plt.scatter(f, V, color='black', label='Datos', s=15)
+    for freq in f_eval: plt.scatter(freq, spline_V(freq), color='red', marker='X', s=100)
+    plt.title('Parte 1: Voltaje V(f) vs Frecuencia')
+    plt.ylabel('Voltaje (V)')
+    plt.grid(True, linestyle='--')
+    plt.legend()
+
+    plt.subplot(2, 1, 2)
+    plt.plot(f_smooth, spline_Z(f_smooth), 'g-', label='Spline Cúbico')
+    plt.scatter(f, Z, color='black', label='Datos', s=15)
+    for freq in f_eval: plt.scatter(freq, spline_Z(freq), color='red', marker='X', s=100)
+    plt.title('Parte 1: Impedancia |Z(f)| vs Frecuencia')
+    plt.xlabel('Frecuencia (kHz)')
+    plt.ylabel('Impedancia (Ohmios)')
+    plt.grid(True, linestyle='--')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+def ejecutar_parte_2():
+    print("\n--- RESULTADOS PARTE 2: DERIVACIÓN NUMÉRICA ---")
+    h = 2.5
+    for freq in [40.0, 70.0, 100.0]:
+        idx = np.where(f == freq)[0][0]
+        df2 = (V[idx+1] - V[idx-1]) / (2*h)
+        df4 = (-V[idx+2] + 8*V[idx+1] - 8*V[idx-1] + V[idx-2]) / (12*h)
+        print(f"\nf = {freq} kHz -> Ord.2: {df2:.4f} | Ord.4: {df4:.4f} | Spline: {spline_dV(freq):.4f} V/kHz")
+    
+    df_prog = (-3*V[0] + 4*V[1] - V[2]) / (2*h)
+    print(f"\nf = 10.0 kHz (Progresiva) -> Ord.2: {df_prog:.4f} | Spline: {spline_dV(10.0):.4f} V/kHz")
+
+    plt.figure(figsize=(10, 8))
+    plt.subplot(2, 1, 1)
+    plt.plot(f_smooth, spline_V(f_smooth), 'b-')
+    plt.scatter(f, V, color='black', s=15)
+    plt.title('Parte 2: Señal Original V(f)')
+    plt.grid(True, linestyle='--')
+
+    plt.subplot(2, 1, 2)
+    plt.plot(f_smooth, spline_dV(f_smooth), 'r-', label='Sensibilidad (Derivada Spline)')
+    plt.axhline(0, color='black', linestyle='--')
+    plt.scatter([10, 40, 70, 100], [df_prog, -0.0726, 0.0447, 0.0119], color='blue', s=60, label='Dif. Finitas')
+    plt.title('Parte 2: Sensibilidad dV/df')
+    plt.xlabel('Frecuencia (kHz)')
+    plt.grid(True, linestyle='--')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+def ejecutar_parte_3():
+    print("\n--- RESULTADOS PARTE 3: RAÍCES Y CRUCES POR CERO ---")
+    raiz1_lin = 55.0 - 0.012 * (57.5 - 55.0) / (-0.041 - 0.012)
+    raiz2_lin = 62.5 - (-0.034) * (65.0 - 62.5) / (0.018 - (-0.034))
+    r1_spline = root_scalar(spline_V, bracket=[55.0, 57.5], method='bisect').root
+    r2_spline = root_scalar(spline_V, bracket=[62.5, 65.0], method='bisect').root
+
+    print(f"Cruce 1 [55.0 - 57.5]: Lineal = {raiz1_lin:.4f} kHz | Spline = {r1_spline:.4f} kHz")
+    print(f"Cruce 2 [62.5 - 65.0]: Lineal = {raiz2_lin:.4f} kHz | Spline = {r2_spline:.4f} kHz")
+
+    f_zoom = np.linspace(50, 70, 400)
+    plt.figure(figsize=(10, 5))
+    plt.plot(f_zoom, spline_V(f_zoom), 'b-', linewidth=2, label='Spline V(f)')
+    plt.axhline(0, color='black', linestyle='--', label='Nivel Cero')
+    plt.scatter(f[(f>=50)&(f<=70)], V[(f>=50)&(f<=70)], color='black', label='Datos')
+    plt.scatter([r1_spline, r2_spline], [0, 0], color='red', marker='X', s=120, label='Raíces')
+    plt.title('Parte 3: Detección de Cruces por Cero')
+    plt.xlabel('Frecuencia (kHz)')
+    plt.ylabel('Voltaje (V)')
+    plt.grid(True, linestyle='--')
+    plt.legend()
+    plt.show()
+
+def ejecutar_parte_4():
+    print("\n--- RESULTADOS PARTE 4: DISCUSIÓN TÉCNICA ---")
+    print("Generando gráfico combinado para análisis de bandas de operación...")
+    
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    plt.title('Parte 4: Voltaje e Impedancia vs Frecuencia', fontweight='bold')
+    
+    color_v = 'tab:blue'
+    ax1.set_xlabel('Frecuencia (kHz)')
+    ax1.set_ylabel('Voltaje V(f) [V]', color=color_v)
+    ax1.plot(f_smooth, spline_V(f_smooth), color=color_v, linewidth=2)
+    ax1.tick_params(axis='y', labelcolor=color_v)
+    ax1.axvspan(30, 35, color='yellow', alpha=0.3, label='Max Potencia (30-35 kHz)')
+    ax1.axvspan(95, 107.5, color='green', alpha=0.2, label='Alta Estabilidad (>95 kHz)')
+    
+    ax2 = ax1.twinx()  
+    color_z = 'tab:red'
+    ax2.set_ylabel('Impedancia |Z(f)| [Ohmios]', color=color_z)
+    ax2.plot(f_smooth, spline_Z(f_smooth), color=color_z, linewidth=2)
+    ax2.tick_params(axis='y', labelcolor=color_z)
+    
+    lines_1, labels_1 = ax1.get_legend_handles_labels()
+    lines_2, labels_2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2)
+    plt.grid(True, linestyle='--', alpha=0.5)
+    fig.tight_layout()
+    plt.show()
+
+# ==========================================
+# MENÚ INTERACTIVO
+# ==========================================
+while True:
+    print("\n" + "="*45)
+    print(" MENÚ DEL EXAMEN DE MÉTODOS NUMÉRICOS")
+    print("="*45)
+    print("1. Parte 1: Interpolación y Splines")
+    print("2. Parte 2: Derivación Numérica")
+    print("3. Parte 3: Raíces (Bisección)")
+    print("4. Parte 4: Discusión Técnica (Gráfico)")
+    print("5. Salir")
+    
+    opcion = input("Elige una opción (1-5): ")
+    clear_output(wait=True) # Limpia la pantalla en Colab para mayor orden
+    
+    if opcion == '1':
+        ejecutar_parte_1()
+    elif opcion == '2':
+        ejecutar_parte_2()
+    elif opcion == '3':
+        ejecutar_parte_3()
+    elif opcion == '4':
+        ejecutar_parte_4()
+    elif opcion == '5':
+        print("Saliendo del programa... ¡Éxitos en el examen!")
+        break
+    else:
+        print("Opción no válida. Por favor, ingresa un número del 1 al 5.")
