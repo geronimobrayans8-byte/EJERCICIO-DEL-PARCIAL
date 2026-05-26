@@ -1,0 +1,56 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
+
+# 1. Datos del ensayo
+f = np.array([10.0, 12.5, 15.0, 17.5, 20.0, 22.5, 25.0, 27.5, 30.0, 32.5, 35.0, 37.5, 40.0, 42.5, 45.0,
+              47.5, 50.0, 52.5, 55.0, 57.5, 60.0, 62.5, 65.0, 67.5, 70.0, 72.5, 75.0, 77.5, 80.0, 82.5,
+              85.0, 87.5, 90.0, 92.5, 95.0, 97.5, 100.0, 102.5, 105.0, 107.5])
+
+V = np.array([0.842, 0.911, 0.986, 1.062, 1.143, 1.227, 1.314, 1.401, 1.482, 1.551, 1.216, 1.048, 0.866, 0.689, 0.521,
+              0.364, 0.223, 0.103, 0.012, -0.041, -0.057, -0.034, 0.018, 0.096, 0.197, 0.318, 0.452, 0.579, 0.700, 0.809,
+              0.611, 0.688, 0.756, 0.811, 0.856, 0.894, 0.926, 0.954, 0.980, 1.004])
+
+Z = np.array([182.4, 178.9, 175.1, 171.0, 166.8, 162.7, 158.9, 155.4, 152.0, 149.0, 146.1, 145.2, 145.8, 147.3, 149.9,
+              153.5, 158.0, 163.2, 168.9, 174.8, 180.5, 186.2, 191.5, 196.2, 200.1, 203.1, 205.2, 206.3, 206.1, 204.7,
+              198.0, 194.4, 190.9, 187.8, 185.1, 183.0, 181.6, 180.8, 180.6, 180.9])
+
+# 2. Interpolación con Spline Cúbico para suavizar las curvas
+f_smooth = np.linspace(f.min(), f.max(), 500)
+spline_V = CubicSpline(f, V, bc_type='natural')
+spline_Z = CubicSpline(f, Z, bc_type='natural')
+
+# 3. Creación del gráfico con Doble Eje Y
+fig, ax1 = plt.subplots(figsize=(12, 7))
+
+# Título global
+plt.title('Análisis de Banda de Operación: Voltaje e Impedancia vs Frecuencia', fontsize=14, fontweight='bold')
+
+# Eje Y Izquierdo (Voltaje - Azul)
+color_v = 'tab:blue'
+ax1.set_xlabel('Frecuencia f (kHz)', fontsize=12)
+ax1.set_ylabel('Voltaje V(f) [Voltios]', color=color_v, fontsize=12)
+ax1.plot(f_smooth, spline_V(f_smooth), color=color_v, linewidth=2.5, label='Spline Voltaje')
+ax1.scatter(f, V, color=color_v, s=25, alpha=0.7)
+ax1.tick_params(axis='y', labelcolor=color_v)
+ax1.grid(True, linestyle='--', alpha=0.5)
+
+# Zonas destacadas
+ax1.axvspan(30, 35, color='yellow', alpha=0.2, label='Zona de Máx Amplitud (Potencia)')
+ax1.axvspan(95, 107.5, color='green', alpha=0.15, label='Zona de Alta Estabilidad')
+
+# Eje Y Derecho (Impedancia - Rojo)
+ax2 = ax1.twinx()  
+color_z = 'tab:red'
+ax2.set_ylabel('Impedancia |Z(f)| [Ohmios]', color=color_z, fontsize=12)
+ax2.plot(f_smooth, spline_Z(f_smooth), color=color_z, linewidth=2.5, label='Spline Impedancia')
+ax2.scatter(f, Z, color=color_z, s=25, alpha=0.7)
+ax2.tick_params(axis='y', labelcolor=color_z)
+
+# Leyendas
+lines_1, labels_1 = ax1.get_legend_handles_labels()
+lines_2, labels_2 = ax2.get_legend_handles_labels()
+ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2)
+
+fig.tight_layout()
+plt.show()
